@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="pt-BR" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Glipearte - Assistente Virtual</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="/_sdk/data_sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    body {
+      box-sizing: border-box;
+    }
+    
+    * {
+      font-family: 'Poppins', sans-serif;
+    }
+    
+    :root {
+      --primary: #075E54;
+      --primary-dark: #054d44;
+      --secondary: #25D366;
+      --bg-light: #ECE5DD;
+      --bg-chat: #E4DDD6;
+      --bubble-out: #DCF8C6;
+      --bubble-in: #FFFFFF;
+      --text-dark: #111B21;
+      --text-muted: #667781;
+    }
+    
+    .chat-bg {
+      background-color: var(--bg-chat);
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c8c4bf' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    
+    .message-bubble {
+      max-width: 85%;
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    @keyframes typing {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-5px); }
+    }
+    
+    .typing-dot {
+      animation: typing 1.4s infinite;
+    }
+    
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    
+    .scrollbar-thin::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .scrollbar-thin::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    .scrollbar-thin::-webkit-scrollbar-thumb {
+      background: rgba(0,0,0,0.2);
+      border-radius: 3px;
+    }
+    
+    .quick-btn {
+      transition: all 0.2s ease;
+    }
+    
+    .quick-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .product-card {
+      transition: all 0.3s ease;
+    }
+    
+    .product-card:hover {
+      transform: scale(1.02);
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+ </head>
+ <body class="h-full bg-gray-100 overflow-auto">
+  <div id="app-container" class="h-full w-full flex flex-col max-w-lg mx-auto bg-white shadow-2xl"><!-- Header -->
+   <header id="chat-header" class="flex items-center gap-3 px-4 py-3 text-white" style="background: linear-gradient(135deg, #075E54 0%, #128C7E 100%);">
+    <div class="relative">
+     <div class="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-2xl">
+      🎈
+     </div>
+     <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
+    </div>
+    <div class="flex-1">
+     <h1 id="header-title" class="font-semibold text-lg">Glipearte Pegue e Monte</h1>
+     <p class="text-xs text-white/80 flex items-center gap-1"><span class="w-2 h-2 bg-green-400 rounded-full inline-block"></span> Online agora</p>
+    </div><button onclick="toggleMenu()" class="p-2 hover:bg-white/10 rounded-full transition">
+     <svg class="w-6 h-6" fill="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="6" r="2" /> <circle cx="12" cy="12" r="2" /> <circle cx="12" cy="18" r="2" />
+     </svg></button>
+   </header><!-- Menu Dropdown -->
+   <div id="menu-dropdown" class="hidden absolute right-4 top-16 bg-white rounded-lg shadow-xl z-50 py-2 min-w-48"><button onclick="viewQuotes()" class="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3"> 📋 Ver Orçamentos </button> <button onclick="resetChat()" class="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3"> 🔄 Reiniciar Conversa </button> <button onclick="callHuman()" class="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3"> 👤 Falar com Atendente </button>
+   </div><!-- Chat Messages -->
+   <main id="chat-messages" class="flex-1 overflow-y-auto chat-bg p-4 space-y-3 scrollbar-thin"><!-- Messages will be rendered here -->
+   </main><!-- Typing Indicator -->
+   <div id="typing-indicator" class="hidden px-4 py-2 chat-bg">
+    <div class="message-bubble bg-white rounded-2xl rounded-tl-md px-4 py-3 inline-flex items-center gap-1 shadow-sm">
+     <div class="typing-dot w-2 h-2 bg-gray-400 rounded-full"></div>
+     <div class="typing-dot w-2 h-2 bg-gray-400 rounded-full"></div>
+     <div class="typing-dot w-2 h-2 bg-gray-400 rounded-full"></div>
+    </div>
+   </div><!-- Quick Actions -->
+   <div id="quick-actions" class="px-4 py-2 bg-gray-50 border-t overflow-x-auto">
+    <div class="flex gap-2 pb-1"><!-- Quick action buttons will be rendered here -->
+    </div>
+   </div><!-- Input Area -->
+   <footer class="px-4 py-3 bg-gray-50 border-t">
+    <div class="flex items-center gap-2"><input type="text" id="message-input" placeholder="Digite uma mensagem..." class="flex-1 px-4 py-3 rounded-full bg-white border border-gray-200 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition" onkeypress="if(event.key === 'Enter') sendMessage()"> <button onclick="sendMessage()" class="w-12 h-12 rounded-full flex items-center justify-center text-white transition hover:scale-105 active:scale-95" style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);">
+      <svg class="w-6 h-6" fill="currentColor" viewbox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+      </svg></button>
+    </div>
+   </footer><!-- Quote Modal -->
+   <div id="quote-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full max-h-[80%] overflow-y-auto">
+     <div class="p-6">
+      <div class="flex items-center justify-between mb-4">
+       <h2 class="text-xl font-bold text-gray-800">📋 Seus Orçamentos</h2><button onclick="closeQuoteModal()" class="p-2 hover:bg-gray-100 rounded-full"> ✕ </button>
+      </div>
+      <div id="quotes-list" class="space-y-3"><!-- Quotes will be rendered here -->
+      </div>
+     </div>
+    </div>
+   </div>
+  </div>
+  <script>
+    // ========== CONFIGURATION ==========
+    const defaultConfig = {
+      company_name: 'Glipearte Pegue e Monte',
+      welcome_message: 'Olá! 😊 Que bom receber sua mensagem!',
+      whatsapp_number: '(11) 99999-9999',
+      primary_color: '#075E54',
+      secondary_color: '#25D366',
+      background_color: '#ECE5DD',
+      text_color: '#111B21',
+      accent_color: '#DCF8C6'
+    };
+
+    let config = { ...defaultConfig };
+    let messages = [];
+    let currentStep = 'welcome';
+    let quoteData = {};
+    let savedQuotes = [];
+    let isTyping = false;
+
+    // ========== PRODUCTS DATA ==========
+    const products = {
+      kits: [
+        { id: 'basic', name: 'Kit Básico', price: 55, items: ['1 Painel redondo 50cm', '1 jarro com bucha', '1 boleira', '3 bandejas', '1 display de mesa'], emoji: '🎈' },
+        { id: 'charme', name: 'Kit Charme', price: 70, items: ['1 Painel redondo 50cm', '1 mini arco de balões', '1 jarro com flores', '3 bandejas', '2 displays'], emoji: '🎉' },
+        { id: 'encanto', name: 'Kit Encanto', price: 100, items: ['1 Painel redondo 50cm', '1 mini arco de balões', '1 jarro com flores', '3 bandejas', '2 displays', '1 mesa cavalete'], emoji: '✨' },
+        { id: 'elegance', name: 'Kit Elegance', price: 165, items: ['1 Painel redondo 50cm', '1 mini arco de balões', '1 jarro com flores', '3 bandejas', '2 displays', '1 Escadinha para lembranças', '1 tapete'], emoji: '👑' },
+        { id: 'premium', name: 'Kit Premium', price: 180, items: ['1 Painel redondo 50cm', '1 mini arco de balões', '1 jarro com flores', '4 bandejas', '4 displays', '1 mesa ripada com balões', '1 mesa para lembranças', '1 tapete'], emoji: '👑' }
+      ],
+      themes: ['Princesas', 'Super-heróis', 'Safari', 'Unicórnio', 'Minnie/Mickey', 'Fazendinha', 'Circo', 'Fundo do Mar', 'Astronauta', 'Dinossauros', 'Personalizado']
+    };
+
+    // ========== BOT RESPONSES ==========
+    const botResponses = {
+      welcome: () => `${config.welcome_message}\n\nEu sou o assistente virtual da **${config.company_name}** e estou aqui para te ajudar com informações sobre nossos produtos, serviços, valores e orçamentos.\n\nComo posso te ajudar hoje? 😊`,
+      
+      menu: () => `Entendi 😊 Você gostaria de:\n\n1️⃣ Conhecer nossos kits de decoração\n2️⃣ Ver nosso portfólio\n3️⃣ Saber valores e condições\n4️⃣ Solicitar um orçamento personalizado\n5️⃣ Falar com um atendente humano`,
+      
+      products: () => {
+        let response = `Trabalhamos com os seguintes kits de decoração **Pegue e Monte** 🎈\n\n`;
+        products.kits.forEach((kit, i) => {
+          response += `${kit.emoji} **${kit.name}** - A partir de R$ ${kit.price},00\n`;
+        });
+        response += `\nTodos pensados para facilitar seu evento e deixar tudo incrível! ✨\n\nQual kit você gostaria de conhecer melhor?`;
+        return response;
+      },
+      
+      kitDetail: (kitId) => {
+        const kit = products.kits.find(k => k.id === kitId);
+        if (!kit) return 'Kit não encontrado. Escolha uma opção válida.';
+        
+        let response = `${kit.emoji} **${kit.name}**\n\n💰 Valor: **R$ ${kit.price},00**\n\n📦 O que está incluso:\n`;
+        kit.items.forEach(item => {
+          response += `• ${item}\n`;
+        });
+        response += `\n✨ Todos os itens podem ser personalizados de acordo com o tema da sua festa!\n\nDeseja solicitar um orçamento para este kit?`;
+        return response;
+      },
+      
+      portfolio: () => `Posso te mostrar alguns trabalhos que já realizamos! 😊\n\n🎀 Festas Infantis (Princesas, Super-heróis, Safari)\n🎂 Aniversários Adultos (Elegante, Tropical, Vintage)\n🏢 Eventos Corporativos\n🎈 Chá de Bebê e Revelação\n\nTemos mais de **500 festas** decoradas com muito carinho! 💕\n\nQual tipo de evento você está planejando?`,
+      
+      prices: () => `💰 **Nossos Valores**\n\nNossos kits começam a partir de **R$ 55,00**\n\n${products.kits.map(k => `${k.emoji} ${k.name}: R$ ${k.price},00`).join('\n')}\n\n📍 O valor final pode variar conforme:\n• Tema escolhido\n• Quantidade de itens\n• Data do evento\n• Local de entrega\n\n💳 **Formas de Pagamento:**\n• PIX (5% desconto)\n• Cartão de Crédito (até 3x)\n• Cartão de Débito\n• Transferência Bancária\n\nGostaria de solicitar um orçamento personalizado?`,
+      
+      quoteStart: () => `Vou te ajudar a montar um orçamento personalizado! 📝\n\nPara começar, me diz: **Qual é o seu nome?**`,
+      
+      askDate: (name) => `Prazer, ${name}! 😊\n\nAgora me conta: **Qual a data do evento?**\n\n(Ex: 15/03/2025)`,
+      
+      askTheme: () => `Ótimo! 🎉\n\nQual será o **tema da festa**?\n\nTemos várias opções:\n${products.themes.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nOu pode me dizer um tema diferente!`,
+      
+      askCity: () => `Que tema lindo! 💕\n\nEm qual **cidade** será o evento?`,
+      
+      askKit: () => {
+        let response = `Perfeito! 📍\n\nAgora escolha o kit que mais combina com você:\n\n`;
+        products.kits.forEach((kit, i) => {
+          response += `${i + 1}. ${kit.emoji} **${kit.name}** - R$ ${kit.price},00\n`;
+        });
+        return response;
+      },
+      
+      quoteComplete: (data) => `✅ **Orçamento Gerado!**\n\n📋 **Resumo do seu pedido:**\n\n👤 Cliente: ${data.client_name}\n📅 Data: ${data.event_date}\n🎨 Tema: ${data.event_theme}\n📍 Cidade: ${data.event_city}\n📦 Kit: ${data.selected_kit}\n\n💰 **Valor Total: ${data.total_value}**\n\n✨ Este orçamento é válido por 7 dias.\n\nPara confirmar a reserva, precisamos de 50% de entrada.\n\nDeseja confirmar este orçamento ou falar com um atendente?`,
+      
+      human: () => `Entendi! Vou te encaminhar para um atendente humano 👤\n\n📱 Entre em contato pelo WhatsApp:\n**${config.whatsapp_number}**\n\nOu aguarde que em breve alguém da equipe vai te atender! 😊`,
+      
+      thanks: () => `Foi um prazer te atender! 💚\n\nSe precisar de mais alguma coisa, é só me chamar.\n\n✨ A **${config.company_name}** agradece seu contato!\n\nTenha um ótimo dia! 🎈`,
+      
+      notUnderstood: () => `Desculpe, não entendi muito bem 😅\n\nVocê pode escolher uma das opções:\n\n1️⃣ Ver produtos\n2️⃣ Portfólio\n3️⃣ Preços\n4️⃣ Fazer orçamento\n5️⃣ Falar com atendente`
+    };
+
+    // ========== QUICK ACTIONS ==========
+    const quickActions = {
+      welcome: [
+        { text: '📦 Ver Produtos', action: () => handleUserChoice('1') },
+        { text: '💰 Preços', action: () => handleUserChoice('3') },
+        { text: '📝 Orçamento', action: () => handleUserChoice('4') }
+      ],
+      menu: [
+        { text: '1️⃣ Produtos', action: () => handleUserChoice('1') },
+        { text: '2️⃣ Portfólio', action: () => handleUserChoice('2') },
+        { text: '3️⃣ Preços', action: () => handleUserChoice('3') },
+        { text: '4️⃣ Orçamento', action: () => handleUserChoice('4') },
+        { text: '5️⃣ Atendente', action: () => handleUserChoice('5') }
+      ],
+      products: products.kits.map(kit => ({
+        text: `${kit.emoji} ${kit.name}`,
+        action: () => handleUserChoice(kit.id)
+      })),
+      kitDetail: [
+        { text: '✅ Fazer Orçamento', action: () => handleUserChoice('4') },
+        { text: '🔙 Ver outros kits', action: () => handleUserChoice('1') },
+        { text: '👤 Falar com atendente', action: () => handleUserChoice('5') }
+      ],
+      quoteComplete: [
+        { text: '✅ Confirmar', action: () => handleUserChoice('confirmar') },
+        { text: '👤 Falar com atendente', action: () => handleUserChoice('5') },
+        { text: '🔙 Voltar ao menu', action: () => handleUserChoice('menu') }
+      ],
+      default: [
+        { text: '📋 Menu', action: () => handleUserChoice('menu') },
+        { text: '📝 Orçamento', action: () => handleUserChoice('4') },
+        { text: '👤 Atendente', action: () => handleUserChoice('5') }
+      ]
+    };
+
+    // ========== ELEMENT SDK INITIALIZATION ==========
+    async function initElementSdk() {
+      if (window.elementSdk) {
+        await window.elementSdk.init({
+          defaultConfig,
+          onConfigChange: async (newConfig) => {
+            config = { ...defaultConfig, ...newConfig };
+            applyConfig();
+          },
+          mapToCapabilities: (cfg) => ({
+            recolorables: [
+              {
+                get: () => cfg.primary_color || defaultConfig.primary_color,
+                set: (value) => {
+                  cfg.primary_color = value;
+                  window.elementSdk.setConfig({ primary_color: value });
+                }
+              },
+              {
+                get: () => cfg.secondary_color || defaultConfig.secondary_color,
+                set: (value) => {
+                  cfg.secondary_color = value;
+                  window.elementSdk.setConfig({ secondary_color: value });
+                }
+              },
+              {
+                get: () => cfg.background_color || defaultConfig.background_color,
+                set: (value) => {
+                  cfg.background_color = value;
+                  window.elementSdk.setConfig({ background_color: value });
+                }
+              },
+              {
+                get: () => cfg.text_color || defaultConfig.text_color,
+                set: (value) => {
+                  cfg.text_color = value;
+                  window.elementSdk.setConfig({ text_color: value });
+                }
+              },
+              {
+                get: () => cfg.accent_color || defaultConfig.accent_color,
+                set: (value) => {
+                  cfg.accent_color = value;
+                  window.elementSdk.setConfig({ accent_color: value });
+                }
+              }
+            ],
+            borderables: [],
+            fontEditable: undefined,
+            fontSizeable: undefined
+          }),
+          mapToEditPanelValues: (cfg) => new Map([
+            ['company_name', cfg.company_name || defaultConfig.company_name],
+            ['welcome_message', cfg.welcome_message || defaultConfig.welcome_message],
+            ['whatsapp_number', cfg.whatsapp_number || defaultConfig.whatsapp_number]
+          ])
+        });
+        
+        if (window.elementSdk.config) {
+          config = { ...defaultConfig, ...window.elementSdk.config };
+        }
+      }
+      applyConfig();
+    }
+
+    function applyConfig() {
+      const header = document.getElementById('chat-header');
+      const headerTitle = document.getElementById('header-title');
+      
+      if (header) {
+        header.style.background = `linear-gradient(135deg, ${config.primary_color} 0%, ${config.secondary_color} 100%)`;
+      }
+      if (headerTitle) {
+        headerTitle.textContent = config.company_name;
+      }
+      
+      document.documentElement.style.setProperty('--primary', config.primary_color);
+      document.documentElement.style.setProperty('--secondary', config.secondary_color);
+      document.documentElement.style.setProperty('--bg-light', config.background_color);
+      document.documentElement.style.setProperty('--text-dark', config.text_color);
+      document.documentElement.style.setProperty('--bubble-out', config.accent_color);
+    }
+
+    // ========== DATA SDK INITIALIZATION ==========
+    async function initDataSdk() {
+      if (window.dataSdk) {
+        const result = await window.dataSdk.init({
+          onDataChanged: (data) => {
+            savedQuotes = data;
+            updateQuotesList();
+          }
+        });
+        
+        if (!result.isOk) {
+          console.error('Failed to initialize Data SDK');
+        }
+      }
+    }
+
+    // ========== MESSAGE HANDLING ==========
+    function addMessage(text, isUser = false, isHTML = false) {
+      const message = {
+        id: Date.now(),
+        text,
+        isUser,
+        isHTML,
+        time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      };
+      messages.push(message);
+      renderMessages();
+      scrollToBottom();
+    }
+
+    function renderMessages() {
+      const container = document.getElementById('chat-messages');
+      container.innerHTML = messages.map(msg => {
+        const bubbleClass = msg.isUser 
+          ? 'ml-auto bg-green-100 rounded-2xl rounded-tr-md' 
+          : 'mr-auto bg-white rounded-2xl rounded-tl-md';
+        
+        const formattedText = msg.isHTML ? msg.text : formatText(msg.text);
+        
+        return `
+          <div class="message-bubble ${bubbleClass} px-4 py-3 shadow-sm" style="${msg.isUser ? `background-color: ${config.accent_color}` : ''}">
+            <div class="text-sm text-gray-800 whitespace-pre-wrap">${formattedText}</div>
+            <div class="text-xs text-gray-500 text-right mt-1">${msg.time}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function formatText(text) {
+      return text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+    }
+
+    function scrollToBottom() {
+      const container = document.getElementById('chat-messages');
+      setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+      }, 100);
+    }
+
+    function showTyping() {
+      isTyping = true;
+      document.getElementById('typing-indicator').classList.remove('hidden');
+      scrollToBottom();
+    }
+
+    function hideTyping() {
+      isTyping = false;
+      document.getElementById('typing-indicator').classList.add('hidden');
+    }
+
+    function updateQuickActions(step) {
+      const container = document.getElementById('quick-actions').querySelector('div');
+      const actions = quickActions[step] || quickActions.default;
+      
+      container.innerHTML = actions.map(action => `
+        <button 
+          onclick="(${action.action.toString()})()" 
+          class="quick-btn whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium border-2 transition"
+          style="border-color: ${config.primary_color}; color: ${config.primary_color}; background: white;"
+          onmouseover="this.style.background='${config.primary_color}'; this.style.color='white';"
+          onmouseout="this.style.background='white'; this.style.color='${config.primary_color}';"
+        >
+          ${action.text}
+        </button>
+      `).join('');
+    }
+
+    // ========== BOT LOGIC ==========
+    async function botReply(text) {
+      showTyping();
+      await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 700));
+      hideTyping();
+      addMessage(text);
+    }
+
+    async function handleUserChoice(choice) {
+      const choiceLower = String(choice).toLowerCase().trim();
+      
+      // Add user message
+      if (!['menu', 'confirmar'].includes(choiceLower)) {
+        // Don't show message for internal navigation
+        if (!products.kits.find(k => k.id === choiceLower)) {
+          addMessage(choice, true);
+        }
+      }
+
+      switch (currentStep) {
+        case 'welcome':
+        case 'menu':
+          await handleMenuChoice(choiceLower);
+          break;
+        case 'products':
+          await handleProductChoice(choiceLower);
+          break;
+        case 'kitDetail':
+          await handleKitDetailChoice(choiceLower);
+          break;
+        case 'askName':
+          quoteData.client_name = choice;
+          currentStep = 'askDate';
+          await botReply(botResponses.askDate(choice));
+          updateQuickActions('default');
+          break;
+        case 'askDate':
+          quoteData.event_date = choice;
+          currentStep = 'askTheme';
+          await botReply(botResponses.askTheme());
+          updateQuickActions('default');
+          break;
+        case 'askTheme':
+          quoteData.event_theme = handleThemeChoice(choice);
+          currentStep = 'askCity';
+          await botReply(botResponses.askCity());
+          updateQuickActions('default');
+          break;
+        case 'askCity':
+          quoteData.event_city = choice;
+          currentStep = 'askKit';
+          await botReply(botResponses.askKit());
+          updateQuickActions('products');
+          break;
+        case 'askKit':
+          await handleKitSelection(choiceLower);
+          break;
+        case 'quoteComplete':
+          await handleQuoteCompleteChoice(choiceLower);
+          break;
+        default:
+          await botReply(botResponses.notUnderstood());
+          currentStep = 'menu';
+          updateQuickActions('menu');
+      }
+    }
+
+    async function handleMenuChoice(choice) {
+      switch (choice) {
+        case '1':
+        case 'produtos':
+        case 'kits':
+        case 'ver produtos':
+          currentStep = 'products';
+          await botReply(botResponses.products());
+          updateQuickActions('products');
+          break;
+        case '2':
+        case 'portfolio':
+        case 'portfólio':
+          currentStep = 'menu';
+          await botReply(botResponses.portfolio());
+          updateQuickActions('menu');
+          break;
+        case '3':
+        case 'preços':
+        case 'valores':
+        case 'precos':
+          currentStep = 'menu';
+          await botReply(botResponses.prices());
+          updateQuickActions('menu');
+          break;
+        case '4':
+        case 'orçamento':
+        case 'orcamento':
+          currentStep = 'askName';
+          await botReply(botResponses.quoteStart());
+          updateQuickActions('default');
+          break;
+        case '5':
+        case 'atendente':
+        case 'humano':
+          currentStep = 'menu';
+          await botReply(botResponses.human());
+          updateQuickActions('menu');
+          break;
+        case 'menu':
+          currentStep = 'menu';
+          await botReply(botResponses.menu());
+          updateQuickActions('menu');
+          break;
+        default:
+          await botReply(botResponses.notUnderstood());
+          currentStep = 'menu';
+          updateQuickActions('menu');
+      }
+    }
+
+    async function handleProductChoice(choice) {
+      const kit = products.kits.find(k => 
+        k.id === choice || 
+        k.name.toLowerCase().includes(choice) ||
+        choice.includes(k.name.toLowerCase())
+      );
+      
+      if (kit) {
+        addMessage(kit.name, true);
+        currentStep = 'kitDetail';
+        quoteData.selectedKitId = kit.id;
+        await botReply(botResponses.kitDetail(kit.id));
+        updateQuickActions('kitDetail');
+      } else if (['1', '2', '3', '4', '5'].includes(choice)) {
+        await handleMenuChoice(choice);
+      } else {
+        await botReply(botResponses.notUnderstood());
+        updateQuickActions('products');
+      }
+    }
+
+    async function handleKitDetailChoice(choice) {
+      if (choice === '4' || choice.includes('orçamento') || choice.includes('orcamento')) {
+        currentStep = 'askName';
+        await botReply(botResponses.quoteStart());
+        updateQuickActions('default');
+      } else if (choice === '1' || choice.includes('outros') || choice.includes('voltar')) {
+        currentStep = 'products';
+        await botReply(botResponses.products());
+        updateQuickActions('products');
+      } else if (choice === '5' || choice.includes('atendente')) {
+        await botReply(botResponses.human());
+        currentStep = 'menu';
+        updateQuickActions('menu');
+      } else {
+        await handleMenuChoice(choice);
+      }
+    }
+
+    function handleThemeChoice(choice) {
+      const themeIndex = parseInt(choice) - 1;
+      if (themeIndex >= 0 && themeIndex < products.themes.length) {
+        return products.themes[themeIndex];
+      }
+      return choice;
+    }
+
+    async function handleKitSelection(choice) {
+      const kitIndex = parseInt(choice) - 1;
+      let selectedKit;
+      
+      if (kitIndex >= 0 && kitIndex < products.kits.length) {
+        selectedKit = products.kits[kitIndex];
+      } else {
+        selectedKit = products.kits.find(k => 
+          k.id === choice || 
+          k.name.toLowerCase().includes(choice)
+        );
+      }
+      
+      if (selectedKit) {
+        addMessage(selectedKit.name, true);
+        quoteData.selected_kit = selectedKit.name;
+        quoteData.total_value = `R$ ${selectedKit.price},00`;
+        currentStep = 'quoteComplete';
+        await botReply(botResponses.quoteComplete(quoteData));
+        updateQuickActions('quoteComplete');
+      } else {
+        await botReply('Por favor, escolha um kit válido (1-4)');
+      }
+    }
+
+    async function handleQuoteCompleteChoice(choice) {
+      if (choice === 'confirmar' || choice.includes('sim') || choice.includes('confirmar')) {
+        await saveQuote();
+        await botReply(`✅ Orçamento confirmado e salvo!\n\nNossa equipe entrará em contato em breve para finalizar os detalhes.\n\n📱 Ou entre em contato: ${config.whatsapp_number}\n\nObrigado por escolher a **${config.company_name}**! 💚`);
+        currentStep = 'menu';
+        updateQuickActions('menu');
+      } else if (choice === '5' || choice.includes('atendente')) {
+        await botReply(botResponses.human());
+        currentStep = 'menu';
+        updateQuickActions('menu');
+      } else if (choice === 'menu' || choice.includes('voltar')) {
+        currentStep = 'menu';
+        await botReply(botResponses.menu());
+        updateQuickActions('menu');
+      } else {
+        await botReply(botResponses.notUnderstood());
+        updateQuickActions('quoteComplete');
+      }
+    }
+
+    // ========== QUOTE MANAGEMENT ==========
+    async function saveQuote() {
+      if (savedQuotes.length >= 999) {
+        addMessage('⚠️ Limite de orçamentos atingido. Por favor, exclua alguns orçamentos antigos.', false);
+        return;
+      }
+      
+      const quote = {
+        id: Date.now().toString(),
+        client_name: quoteData.client_name || '',
+        client_phone: quoteData.client_phone || '',
+        event_date: quoteData.event_date || '',
+        event_theme: quoteData.event_theme || '',
+        event_city: quoteData.event_city || '',
+        selected_kit: quoteData.selected_kit || '',
+        total_value: quoteData.total_value || '',
+        status: 'Pendente',
+        created_at: new Date().toISOString()
+      };
+      
+      if (window.dataSdk) {
+        const result = await window.dataSdk.create(quote);
+        if (!result.isOk) {
+          console.error('Failed to save quote');
+        }
+      }
+      
+      quoteData = {};
+    }
+
+    function updateQuotesList() {
+      const container = document.getElementById('quotes-list');
+      
+      if (savedQuotes.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-8 text-gray-500">
+            <div class="text-4xl mb-2">📭</div>
+            <p>Nenhum orçamento salvo ainda</p>
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = savedQuotes.map(quote => `
+        <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+          <div class="flex justify-between items-start mb-2">
+            <div>
+              <div class="font-semibold text-gray-800">${quote.client_name}</div>
+              <div class="text-sm text-gray-500">${quote.event_date} • ${quote.event_city}</div>
+            </div>
+            <span class="px-2 py-1 text-xs rounded-full ${quote.status === 'Confirmado' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">
+              ${quote.status}
+            </span>
+          </div>
+          <div class="text-sm text-gray-600 mb-2">
+            🎨 ${quote.event_theme} • 📦 ${quote.selected_kit}
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="font-bold" style="color: ${config.primary_color}">${quote.total_value}</span>
+            <button 
+              onclick="deleteQuote('${quote.__backendId}')" 
+              class="text-red-500 text-sm hover:text-red-700 transition"
+            >
+              🗑️ Excluir
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function deleteQuote(backendId) {
+      const quote = savedQuotes.find(q => q.__backendId === backendId);
+      if (quote && window.dataSdk) {
+        const result = await window.dataSdk.delete(quote);
+        if (!result.isOk) {
+          console.error('Failed to delete quote');
+        }
+      }
+    }
+
+    // ========== UI ACTIONS ==========
+    function sendMessage() {
+      const input = document.getElementById('message-input');
+      const text = input.value.trim();
+      
+      if (text && !isTyping) {
+        input.value = '';
+        handleUserChoice(text);
+      }
+    }
+
+    function toggleMenu() {
+      const menu = document.getElementById('menu-dropdown');
+      menu.classList.toggle('hidden');
+    }
+
+    function viewQuotes() {
+      toggleMenu();
+      document.getElementById('quote-modal').classList.remove('hidden');
+    }
+
+    function closeQuoteModal() {
+      document.getElementById('quote-modal').classList.add('hidden');
+    }
+
+    function resetChat() {
+      toggleMenu();
+      messages = [];
+      currentStep = 'welcome';
+      quoteData = {};
+      renderMessages();
+      startConversation();
+    }
+
+    function callHuman() {
+      toggleMenu();
+      handleUserChoice('5');
+    }
+
+    // ========== INITIALIZATION ==========
+    async function startConversation() {
+      await botReply(botResponses.welcome());
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await botReply(botResponses.menu());
+      currentStep = 'menu';
+      updateQuickActions('menu');
+    }
+
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('menu-dropdown');
+      const menuButton = e.target.closest('button');
+      if (!menu.contains(e.target) && !menuButton?.onclick?.toString().includes('toggleMenu')) {
+        menu.classList.add('hidden');
+      }
+    });
+
+    // Initialize
+    (async () => {
+      await initElementSdk();
+      await initDataSdk();
+      await startConversation();
+    })();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9c798253e77dc802',t:'MTc3MDAzMzQyNi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
